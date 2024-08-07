@@ -18,9 +18,7 @@ use crate::batch::run_next_app;
 use crate::syscall::syscall;
 use core::arch::global_asm;
 use riscv::register::{
-    mtvec::TrapMode,
-    scause::{self, Exception, Trap},
-    stval, stvec,
+    mtvec::TrapMode, scause::{self, Exception, Trap}, sepc, sstatus::{self}, stval, stvec
 };
 
 global_asm!(include_str!("trap.S"));
@@ -38,6 +36,10 @@ pub fn init() {
 #[no_mangle]
 /// handle an interrupt, exception, or system call from user space
 pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+    if sstatus::read().spp() != sstatus::SPP::User {
+        panic!("[kernel] usertrap not occured in user mode");
+    }
+
     let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
     match scause.cause() {
@@ -47,10 +49,12 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         }
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
+            println!("[kernel] bad addr = {:#x}, bad instruction = {:#x}.", stval, sepc::read());
             run_next_app();
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
+            println!("[kernel] Illegal instruction = {:#x}", sepc::read());
             run_next_app();
         }
         _ => {
