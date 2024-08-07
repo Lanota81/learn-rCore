@@ -1,10 +1,13 @@
 //! batch subsystem
-
+#![allow(unused)]
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use core::arch::asm;
+use core::ops::Add;
+use core::str;
 use lazy_static::*;
+use riscv::use_sv32;
 
 const USER_STACK_SIZE: usize = 4096 * 2;
 const KERNEL_STACK_SIZE: usize = 4096 * 2;
@@ -52,15 +55,21 @@ struct AppManager {
     num_app: usize,
     current_app: usize,
     app_start: [usize; MAX_APP_NUM + 1],
+    app_names: [[usize; 2]; MAX_APP_NUM],
 }
 
 impl AppManager {
+    fn get_app_name(&self, i: usize) -> &str {
+        unsafe { str::from_utf8(core::slice::from_raw_parts(self.app_names[i][0] as *const u8, self.app_names[i][1])).expect("App name parse error") }
+    }
+
     pub fn print_app_info(&self) {
         println!("[kernel] num_app = {}", self.num_app);
         for i in 0..self.num_app {
             println!(
-                "[kernel] app_{} [{:#x}, {:#x})",
+                "[kernel] app_{} {} [{:#x}, {:#x})",
                 i,
+                self.get_app_name(i),
                 self.app_start[i],
                 self.app_start[i + 1]
             );
@@ -72,7 +81,7 @@ impl AppManager {
             println!("All applications completed!");
             shutdown(false);
         }
-        println!("[kernel] Loading app_{}", app_id);
+        println!("[kernel] Loading app_{} {}", app_id, self.get_app_name(app_id));
         // clear app area
         core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, APP_SIZE_LIMIT).fill(0);
         let app_src = core::slice::from_raw_parts(
@@ -104,6 +113,7 @@ lazy_static! {
         UPSafeCell::new({
             extern "C" {
                 fn _num_app();
+                fn _num_app_name();
             }
             let num_app_ptr = _num_app as usize as *const usize;
             let num_app = num_app_ptr.read_volatile();
@@ -111,10 +121,20 @@ lazy_static! {
             let app_start_raw: &[usize] =
                 core::slice::from_raw_parts(num_app_ptr.add(1), num_app + 1);
             app_start[..=num_app].copy_from_slice(app_start_raw);
+            let num_name_ptr = _num_app_name as usize as *const usize;
+            let mut app_names: [[usize; 2]; MAX_APP_NUM] = [[0; 2]; MAX_APP_NUM];
+            let app_names_addr: &[usize] =
+                core::slice::from_raw_parts(num_name_ptr, num_app);
+            for i in 0..num_app {
+                let ptr = app_names_addr[i] as *const usize;
+                let t = ptr.read_volatile();
+                app_names[i] = [app_names_addr[i] + 8, t];
+            }
             AppManager {
                 num_app,
                 current_app: 0,
                 app_start,
+                app_names,
             }
         })
     };
@@ -151,4 +171,11 @@ pub fn run_next_app() -> ! {
         )) as *const _ as usize);
     }
     panic!("Unreachable in batch::run_current_app!");
+}
+
+/// exercise 2.01, print current app's id & name
+pub fn print_current_app_info() {
+    let mut mana = APP_MANAGER.exclusive_access();
+    let t = mana.current_app - 1;
+    println!("Current app is app_{}, which name is {}", t, mana.get_app_name(t));
 }

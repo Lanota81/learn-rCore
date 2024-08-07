@@ -52,5 +52,35 @@ app_{0}_end:"#,
             idx, app, TARGET_PATH
         )?;
     }
+    
+    writeln!(
+        f,
+        r#"
+    .align 3
+    .global _num_app_name
+_num_app_name:"#
+    )?;
+    for idx in 0..apps.len() {
+        writeln!(
+            f,
+            r#"    .quad app_{0}_name"#,
+            idx
+        )?;
+    }
+    for (idx, app) in apps.iter().enumerate() {
+        write!(
+            f,
+            r#"
+    .align 3
+    .section .data
+    .global app_{0}_name
+app_{0}_name:
+    .quad {2}
+    .string "{1}"
+    "#,
+            idx, app, app.len()
+        )?;
+    }
+
     Ok(())
 }
