@@ -7,11 +7,11 @@ fn main() {
     insert_app_data().unwrap();
 }
 
-static TARGET_PATH: &str = "../user/target/riscv64gc-unknown-none-elf/release/";
+static TARGET_PATH: &str = "../user/build/bin/";
 
 fn insert_app_data() -> Result<()> {
     let mut f = File::create("src/link_app.S").unwrap();
-    let mut apps: Vec<_> = read_dir("../user/src/bin")
+    let mut apps: Vec<_> = read_dir("../user/build/bin/")
         .unwrap()
         .into_iter()
         .map(|dir_entry| {
@@ -52,35 +52,5 @@ app_{0}_end:"#,
             idx, app, TARGET_PATH
         )?;
     }
-    
-    writeln!(
-        f,
-        r#"
-    .align 3
-    .global _num_app_name
-_num_app_name:"#
-    )?;
-    for idx in 0..apps.len() {
-        writeln!(
-            f,
-            r#"    .quad app_{0}_name"#,
-            idx
-        )?;
-    }
-    for (idx, app) in apps.iter().enumerate() {
-        write!(
-            f,
-            r#"
-    .align 3
-    .section .data
-    .global app_{0}_name
-app_{0}_name:
-    .quad {2}
-    .string "{1}"
-    "#,
-            idx, app, app.len()
-        )?;
-    }
-
     Ok(())
 }
