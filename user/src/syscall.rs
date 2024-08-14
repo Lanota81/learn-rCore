@@ -22,6 +22,7 @@ pub const SYSCALL_MAIL_READ: usize = 401;
 pub const SYSCALL_MAIL_WRITE: usize = 402;
 pub const SYSCALL_DUP: usize = 24;
 pub const SYSCALL_PIPE: usize = 59;
+pub const SYSCALL_GET_TASKINFO: usize = 127;
 
 pub fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -176,4 +177,8 @@ pub fn sys_dup(fd: usize) -> isize {
 
 pub fn sys_pipe(pipe: &mut [usize]) -> isize {
     syscall(SYSCALL_PIPE, [pipe.as_mut_ptr() as usize, 0, 0])
+}
+
+pub fn sys_get_taskinfo() -> isize {
+    syscall(SYSCALL_GET_TASKINFO, [0 as usize, 0, 0])
 }
