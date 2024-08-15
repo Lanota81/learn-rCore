@@ -26,8 +26,6 @@ pub fn init() {
 pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     if sstatus::read().spp() != sstatus::SPP::User {
         println!("[kernel] usertrap not occured in user mode");
-        run_next_app();
-        return cx;
     }
 
     let scause = scause::read();
