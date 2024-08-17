@@ -22,6 +22,7 @@
 
 use core::arch::global_asm;
 use riscv::register::{sstatus, mstatus::FS};
+pub use log::*;
 
 #[path = "boards/qemu.rs"]
 mod board;
@@ -37,6 +38,7 @@ pub mod syscall;
 pub mod task;
 mod timer;
 pub mod trap;
+pub mod logging;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -60,7 +62,8 @@ pub fn rust_main() -> ! {
     unsafe {
         sstatus::set_fs(FS::Clean);
     }
-    println!("[kernel] Hello, world!");
+    logging::init();
+    trace!("[kernel] Hello, world!");
     trap::init();
     loader::load_apps();
     trap::enable_timer_interrupt();

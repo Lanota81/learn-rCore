@@ -20,6 +20,7 @@ use crate::loader::{get_num_app, init_app_cx};
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
 use crate::timer::{get_time_ms, get_time_us};
+use log::*;
 use lazy_static::*;
 use task::{TaskControlBlock, TaskStatus};
 
@@ -91,7 +92,7 @@ impl TaskManager {
 
         inner.start_timer();
         unsafe {
-            println!("[kernel] First task running, id = {}, kernel stack ptr = {:#x}", 0, (*next_task_cx_ptr).stack_pointer());
+            debug!("[kernel] First task running, id = {}, kernel stack ptr = {:#x}", 0, (*next_task_cx_ptr).stack_pointer());
         }
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -140,15 +141,15 @@ impl TaskManager {
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
             if next != current {
-                println!("[kernel] Task {} {}, kernel stack pointer = {:#x}", current, match inner.tasks[current].task_status {
+                debug!("[kernel] Task {} {}, kernel stack pointer = {:#x}", current, match inner.tasks[current].task_status {
                     TaskStatus::Ready => "suspended",
                     TaskStatus::Exited => "exited",
                     _ => "has a status exception",
                 }, inner.tasks[current].task_cx.stack_pointer());
                 if inner.tasks[current].task_status == TaskStatus::Exited {
-                    println!("[kernel] Task {} has run for kernel_time: {} ms, user_time: {} ms", current, inner.tasks[current].kernel_time, inner.tasks[current].user_time);
+                    debug!("[kernel] Task {} has run for kernel_time: {} ms, user_time: {} ms", current, inner.tasks[current].kernel_time, inner.tasks[current].user_time);
                 }
-                println!("[kernel] Task {} is running, kernel stack pointer = {:#x}", next, inner.tasks[next].task_cx.stack_pointer());
+                debug!("[kernel] Task {} is running, kernel stack pointer = {:#x}", next, inner.tasks[next].task_cx.stack_pointer());
             }
             drop(inner);
             // before this, we should drop local variables that must be dropped manually
@@ -159,10 +160,10 @@ impl TaskManager {
         } else {
             let inner = self.inner.exclusive_access();
             let current = inner.current_task;
-            println!("[kernel] Task {} exited, run for kernel_time: {} ms, user_time: {} ms", current, inner.tasks[current].kernel_time, inner.tasks[current].user_time);
+            debug!("[kernel] Task {} exited, run for kernel_time: {} ms, user_time: {} ms", current, inner.tasks[current].kernel_time, inner.tasks[current].user_time);
             println!("All applications completed!");
             unsafe {
-                println!("Switch tasks costs {} us", SWITCH_TIME_COUNTER); 
+                debug!("Switch tasks costs {} us", SWITCH_TIME_COUNTER); 
             }
             shutdown(false);
         }
