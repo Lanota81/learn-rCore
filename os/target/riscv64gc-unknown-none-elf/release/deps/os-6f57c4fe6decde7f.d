@@ -26,4 +26,4 @@ src/trap/trap.S:
 src/entry.asm:
 src/link_app.S:
 
-# env-dep:LOG=TRACE
+# env-dep:LOG

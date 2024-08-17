@@ -4,6 +4,7 @@ use super::TaskContext;
 pub struct TaskControlBlock {
     pub task_status: TaskStatus,
     pub task_cx: TaskContext,
+    pub task_prio: usize,
     pub user_time: usize,
     pub kernel_time: usize,
 }

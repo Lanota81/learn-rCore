@@ -2,6 +2,8 @@ mod context;
 mod switch;
 mod task;
 
+use core::cell::RefMut;
+
 use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
@@ -18,8 +20,11 @@ pub struct TaskManager {
     inner: UPSafeCell<TaskManagerInner>,
 }
 
+const BIG_STRIDE: usize = 1000;
+
 struct TaskManagerInner {
     tasks: [TaskControlBlock; MAX_APP_NUM],
+    stride: [usize; MAX_APP_NUM],
     current_task: usize,
     /// timer for each task
     timer: usize,
@@ -31,6 +36,7 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            task_prio: 16,
             user_time: 0,
             kernel_time: 0,
         }; MAX_APP_NUM];
@@ -43,6 +49,7 @@ lazy_static! {
             inner: unsafe {
                 UPSafeCell::new(TaskManagerInner {
                     tasks,
+                    stride: [0; MAX_APP_NUM],
                     current_task: 0,
                     timer: 0,
                 })
@@ -57,6 +64,12 @@ impl TaskManager {
         let task0 = &mut inner.tasks[0];
         task0.task_status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
+
+        for i in 1..MAX_APP_NUM {
+            if inner.tasks[i].task_status != TaskStatus::Ready {
+                inner.stride[i] = usize::MAX;
+            }
+        }
 
         inner.start_timer();
         unsafe {
@@ -80,6 +93,7 @@ impl TaskManager {
         let current = inner.current_task;
         inner.task_kernel_time();
         inner.tasks[current].task_status = TaskStatus::Ready;
+        self.update_stride(&mut inner);
     }
 
     fn mark_current_exited(&self) {
@@ -87,14 +101,16 @@ impl TaskManager {
         let current = inner.current_task;
         inner.task_kernel_time();
         inner.tasks[current].task_status = TaskStatus::Exited;
+        self.max_stride(&mut inner);
     }
 
     fn find_next_task(&self) -> Option<usize> {
         let inner = self.inner.exclusive_access();
         let current = inner.current_task;
+        let tar = *inner.stride.iter().min().unwrap();
         (current + 1..current + self.num_app + 1)
             .map(|id| id % self.num_app)
-            .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
+            .find(|id| tar < usize::MAX && inner.stride[*id] == tar)
     }
 
     fn run_next_task(&self) {
@@ -147,6 +163,28 @@ impl TaskManager {
             }
             shutdown();
         }
+    }
+
+    fn set_priority(&self, prio: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let cur = inner.current_task;
+        inner.tasks[cur].task_prio = prio;
+    }
+
+    fn update_stride(&self, inner: &mut RefMut<TaskManagerInner>) {
+        let cur = inner.current_task;
+        let prio = inner.tasks[cur].task_prio;
+        inner.stride[cur] += BIG_STRIDE / prio;
+    }
+
+    fn max_stride(&self, inner: &mut RefMut<TaskManagerInner>) {
+        let cur = inner.current_task;
+        inner.stride[cur] = usize::MAX;
+    }
+
+    fn get_current_task_id(&self) -> usize {
+        let mut inner = self.inner.exclusive_access();
+        inner.current_task
     }
 }
 
@@ -211,4 +249,14 @@ unsafe fn __switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *con
     SWITCH_TIMER = get_time_us();
     switch::__switch(current_task_cx_ptr, next_task_cx_ptr);
     SWITCH_TIME_COUNTER += get_time_us() - SWITCH_TIMER;
+}
+
+/// set prio for current task
+pub fn set_priority(prio: usize) {
+    TASK_MANAGER.set_priority(prio);
+}
+
+/// get current task id
+pub fn get_current_task_id() -> usize {
+    TASK_MANAGER.get_current_task_id()
 }

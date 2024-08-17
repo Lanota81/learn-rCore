@@ -83,7 +83,7 @@ fn kernel_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             panic!("[kernel] PageFault in kernel, bad addr = {:#x}, bad instruction = {:#x}, kernel paniced.", stval, cx.sepc);
         }
         _ => {
-            panic!("Unknown kernel trap, kernel paniced.");
+            panic!("Unknown kernel trap {:?}, stval = {:#x}, kernel paniced.", scause.cause(), stval);
         }
     }
     cx
