@@ -1,0 +1,10 @@
+cargo:rerun-if-changed=../user/src/
+cargo:rerun-if-changed=../user/build/bin/
+app_0: power_3
+app_1: power_5
+app_2: power_7
+app_3: sleep
+app_4: sleep1
+app_5: yield0
+app_6: yield1
+app_7: yield2
