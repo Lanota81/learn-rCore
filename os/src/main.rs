@@ -21,6 +21,7 @@
 #![no_main]
 
 use core::arch::global_asm;
+use riscv::register::{sstatus, mstatus::FS};
 
 #[path = "boards/qemu.rs"]
 mod board;
@@ -56,6 +57,9 @@ fn clear_bss() {
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
+    unsafe {
+        sstatus::set_fs(FS::Clean);
+    }
     println!("[kernel] Hello, world!");
     trap::init();
     loader::load_apps();

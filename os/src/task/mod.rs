@@ -19,9 +19,8 @@ use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
-use crate::timer::get_time_ms;
+use crate::timer::{get_time_ms, get_time_us};
 use lazy_static::*;
-use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
@@ -162,6 +161,9 @@ impl TaskManager {
             let current = inner.current_task;
             println!("[kernel] Task {} exited, run for kernel_time: {} ms, user_time: {} ms", current, inner.tasks[current].kernel_time, inner.tasks[current].user_time);
             println!("All applications completed!");
+            unsafe {
+                println!("Switch tasks costs {} us", SWITCH_TIME_COUNTER); 
+            }
             shutdown(false);
         }
     }
@@ -225,4 +227,13 @@ pub fn task_kernel_time() {
 /// update current task user timer
 pub fn task_user_time() {
     TASK_MANAGER.inner.exclusive_access().task_user_time();
+}
+
+static mut SWITCH_TIMER: usize = 0;
+static mut SWITCH_TIME_COUNTER: usize = 0;
+/// count usage of __switch
+unsafe fn __switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *const TaskContext) {
+    SWITCH_TIMER = get_time_us();
+    switch::__switch(current_task_cx_ptr, next_task_cx_ptr);
+    SWITCH_TIME_COUNTER += get_time_us() - SWITCH_TIMER;
 }

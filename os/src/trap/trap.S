@@ -1,9 +1,16 @@
 .altmacro
+.attribute arch, "rv64gc"
 .macro SAVE_GP n
     sd x\n, \n*8(sp)
 .endm
 .macro LOAD_GP n
     ld x\n, \n*8(sp)
+.endm
+.macro SAVE_FSR n
+    fsd f\n, (34+\n)*8(sp)
+.endm
+.macro LOAD_FSR n
+    fld f\n, (34+\n)*8(sp)
 .endm
     .section .text
     .globl __alltraps
@@ -23,6 +30,11 @@ __alltraps:
     .set n, 5
     .rept 27
         SAVE_GP %n
+        .set n, n+1
+    .endr
+    .set n, 0
+    .rept 32
+        SAVE_FSR %n
         .set n, n+1
     .endr
     # we can use t0/t1/t2 freely, because they were saved on kernel stack
@@ -52,6 +64,11 @@ __restore:
     .set n, 5
     .rept 27
         LOAD_GP %n
+        .set n, n+1
+    .endr
+    .set n, 0
+    .rept 32
+        LOAD_FSR %n
         .set n, n+1
     .endr
     # release TrapContext on kernel stack
