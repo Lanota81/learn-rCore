@@ -2,18 +2,21 @@
 #![no_main]
 
 pub use core::arch::global_asm;
+use log::*;
+use riscv::register::{mstatus::FS, sstatus};
 
 #[macro_use]
 mod console;
-mod lang_items;
-mod sbi;
-mod syscall;
-mod trap;
-mod loader;
 mod config;
+mod lang_items;
+mod loader;
+pub mod logging;
+mod sbi;
+mod sync;
+mod syscall;
 mod task;
 mod timer;
-mod sync;
+mod trap;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -24,17 +27,19 @@ fn clear_bss() {
         fn ebss();
     }
     unsafe {
-        core::slice::from_raw_parts_mut(
-            sbss as usize as *mut u8,
-            ebss as usize - sbss as usize,
-        ).fill(0);
+        core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
+            .fill(0);
     }
 }
 
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
-    println!("[kernel] Hello, world!");
+    unsafe {
+        sstatus::set_fs(FS::Clean);
+    }
+    logging::init();
+    trace!("[kernel] Hello, world!");
     trap::init();
     loader::load_apps();
     trap::enable_timer_interrupt();

@@ -1,16 +1,31 @@
 .altmacro
+.attribute arch, "rv64gc"
 .macro SAVE_GP n
     sd x\n, \n*8(sp)
 .endm
 .macro LOAD_GP n
     ld x\n, \n*8(sp)
 .endm
+.macro SAVE_FSR n
+    fsd f\n, (34+\n)*8(sp)
+.endm
+.macro LOAD_FSR n
+    fld f\n, (34+\n)*8(sp)
+.endm
     .section .text
     .globl __alltraps
     .globl __restore
     .align 2
 __alltraps:
+    csrr tp, sstatus
+    andi tp, tp, 0x100
+    beqz tp, __user_trap_start
+    j __real_trap_entry
+
+__user_trap_start:
     csrrw sp, sscratch, sp
+
+__real_trap_entry:
     # now sp->kernel stack, sscratch->user stack
     # allocate a TrapContext on kernel stack
     addi sp, sp, -34*8
@@ -23,6 +38,11 @@ __alltraps:
     .set n, 5
     .rept 27
         SAVE_GP %n
+        .set n, n+1
+    .endr
+    .set n, 0
+    .rept 32
+        SAVE_FSR %n
         .set n, n+1
     .endr
     # we can use t0/t1/t2 freely, because they were saved on kernel stack
@@ -46,6 +66,11 @@ __restore:
     csrw sstatus, t0
     csrw sepc, t1
     csrw sscratch, t2
+
+    andi t0, t0, 0x100
+    bnez t0, __kernel_trap_end
+
+__user_trap_end:
     # restore general-purpuse registers except sp/tp
     ld x1, 1*8(sp)
     ld x3, 3*8(sp)
@@ -54,8 +79,31 @@ __restore:
         LOAD_GP %n
         .set n, n+1
     .endr
+    .set n, 0
+    .rept 32
+        LOAD_FSR %n
+        .set n, n+1
+    .endr
     # release TrapContext on kernel stack
     addi sp, sp, 34*8
     # now sp->kernel stack, sscratch->user stack
     csrrw sp, sscratch, sp
+    sret
+
+__kernel_trap_end:
+    # restore general-purpuse registers except sp/tp
+    ld x1, 1*8(sp)
+    ld x3, 3*8(sp)
+    .set n, 5
+    .rept 27
+        LOAD_GP %n
+        .set n, n+1
+    .endr
+    .set n, 0
+    .rept 32
+        LOAD_FSR %n
+        .set n, n+1
+    .endr
+    # release TrapContext on kernel stack
+    addi sp, sp, 34*8
     sret

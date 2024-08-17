@@ -15,12 +15,18 @@ impl TaskContext {
         }
     }
     pub fn goto_restore(kstack_ptr: usize) -> Self {
-        extern "C" { fn __restore(); }
+        extern "C" {
+            fn __restore();
+        }
         Self {
             ra: __restore as usize,
             sp: kstack_ptr,
             s: [0; 12],
         }
     }
-}
 
+    /// return stack pointer
+    pub fn stack_pointer(&self) -> usize {
+        self.sp
+    }
+}

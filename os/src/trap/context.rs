@@ -5,6 +5,8 @@ pub struct TrapContext {
     pub x: [usize; 32],
     pub sstatus: Sstatus,
     pub sepc: usize,
+    /// floating regs[0..32]
+    pub f: [usize; 32],
 }
 
 impl TrapContext {
@@ -16,6 +18,7 @@ impl TrapContext {
             x: [0; 32],
             sstatus,
             sepc: entry,
+            f: [0; 32],
         };
         cx.set_sp(sp);
         cx
