@@ -18,6 +18,7 @@ use crate::syscall::syscall;
 use crate::task::{exit_current_and_run_next, suspend_current_and_run_next, task_kernel_time, task_user_time};
 use crate::timer::set_next_trigger;
 use core::arch::global_asm;
+use riscv::register::sstatus;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Interrupt, Trap},
@@ -46,6 +47,14 @@ pub fn enable_timer_interrupt() {
 #[no_mangle]
 /// handle an interrupt, exception, or system call from user space
 pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+    match sstatus::read().spp() {
+        sstatus::SPP::Supervisor => kernel_trap_handler(cx),
+        sstatus::SPP::User => user_trap_handler(cx),
+    }
+}
+
+#[no_mangle]
+fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     task_user_time();
     let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
@@ -75,6 +84,22 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         }
     }
     task_kernel_time();
+    cx
+}
+
+#[no_mangle]
+fn kernel_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+    let scause = scause::read();
+    let stval = stval::read();
+    match scause.cause() {
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            set_next_trigger();
+        }
+        Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
+            panic!("[kernel] PageFault in kernel, bad addr = {:#x}, bad instruction = {:#x}, kernel paniced.", stval, cx.sepc);
+        }
+        _ => { panic!("Unknown kernel trap, kernel paniced."); }
+    }
     cx
 }
 
