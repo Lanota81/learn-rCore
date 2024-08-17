@@ -33,4 +33,9 @@ impl TaskContext {
             s: [0; 12],
         }
     }
+
+    /// return stack pointer
+    pub fn stack_pointer(&self) -> usize {
+        self.sp
+    }
 }
