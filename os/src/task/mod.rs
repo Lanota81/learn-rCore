@@ -3,6 +3,7 @@ mod switch;
 mod task;
 
 use crate::loader::{get_num_app, get_app_data};
+use crate::mm::VirtPageNum;
 use crate::trap::TrapContext;
 use crate::sync::UPSafeCell;
 use lazy_static::*;
@@ -115,6 +116,18 @@ impl TaskManager {
             panic!("All applications completed!");
         }
     }
+
+    fn mmap_in_task(&self, start: VirtPageNum, end: VirtPageNum, prot: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].mmap_in_task(start, end, prot)
+    }
+
+    fn munmap_in_task(&self, start: VirtPageNum, end: VirtPageNum) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].munmap_in_task(start, end)
+    }
 }
 
 pub fn run_first_task() {
@@ -149,4 +162,12 @@ pub fn current_user_token() -> usize {
 
 pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
+}
+
+pub fn mmap_in_task(start: VirtPageNum, end: VirtPageNum, prot: usize) -> isize {
+    TASK_MANAGER.mmap_in_task(start, end, prot)
+}
+
+pub fn munmap_in_task(start: VirtPageNum, end: VirtPageNum) -> isize {
+    TASK_MANAGER.munmap_in_task(start, end)
 }

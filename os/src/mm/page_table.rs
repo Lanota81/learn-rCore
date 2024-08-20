@@ -1,4 +1,6 @@
-use super::{frame_alloc, PhysPageNum, FrameTracker, VirtPageNum, VirtAddr, StepByOne};
+use crate::task::current_user_token;
+
+use super::{frame_alloc, PhysPageNum, PhysAddr, FrameTracker, VirtPageNum, VirtAddr, StepByOne};
 use alloc::vec::Vec;
 use alloc::vec;
 use bitflags::*;
@@ -154,4 +156,18 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
         start = end_va.into();
     }
     v
+}
+
+pub fn virt2phys(virt: VirtAddr) -> Option<PhysAddr> {
+    let offset = virt.page_offset();
+    let vpn = VirtPageNum::from(virt.floor());
+    let ppn = PageTable::from_token(current_user_token())
+        .translate(vpn)
+        .map(|e| e.ppn());
+    if let Some(ppn) = ppn {
+        Some(PhysAddr(usize::from(PhysAddr::from(ppn)) + offset))
+    } else {
+        println!("[kernel] virt2phys failed!");
+        None
+    }
 }

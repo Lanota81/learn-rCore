@@ -189,6 +189,19 @@ impl MemorySet {
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
     }
+    pub fn munmap(&mut self, start: VirtPageNum, end: VirtPageNum) -> isize {
+        let vr = VPNRange::new(start, end);
+        let n = self.areas.len();
+        for i in 0..n {
+            let ma = &mut self.areas[i];
+            if ma.vpn_range == vr {
+                ma.unmap(&mut self.page_table);
+                self.areas.remove(i);
+                return 0;
+            }
+        }
+        -1
+    }
 }
 
 pub struct MapArea {

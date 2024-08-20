@@ -1,4 +1,4 @@
-use crate::mm::{MemorySet, MapPermission, PhysPageNum, KERNEL_SPACE, VirtAddr};
+use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, VirtPageNum, KERNEL_SPACE};
 use crate::trap::{TrapContext, trap_handler};
 use crate::config::{TRAP_CONTEXT, kernel_stack_position};
 use super::TaskContext;
@@ -53,6 +53,26 @@ impl TaskControlBlock {
             trap_handler as usize,
         );
         task_control_block
+    }
+
+    pub fn mmap_in_task(&mut self, start: VirtPageNum, end: VirtPageNum, prot: usize) -> isize {
+        for vpn in usize::from(start)..usize::from(end) {
+            if let Some(pte) = self.memory_set.translate(VirtPageNum(vpn)) {
+                if pte.is_valid() { return -1; }
+            }
+        }
+        let per = MapPermission::from_bits((prot << 1) as u8).unwrap() | MapPermission::U;
+        self.memory_set.insert_framed_area(VirtAddr::from(start), VirtAddr::from(end), per);
+        0
+    }
+
+    pub fn munmap_in_task(&mut self, start: VirtPageNum, end: VirtPageNum) -> isize {
+        for vpn in usize::from(start)..usize::from(end) {
+            if let Some(pte) = self.memory_set.translate(VirtPageNum(vpn)) {
+                if !pte.is_valid() { return -1; }
+            }
+        }
+        self.memory_set.munmap(start, end)
     }
 }
 
