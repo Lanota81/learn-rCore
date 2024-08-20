@@ -1,0 +1,5 @@
+cargo:rerun-if-changed=../user/src/
+cargo:rerun-if-changed=../user/build/elf/
+app_0: 00power_3
+app_1: 01power_5
+app_2: 02power_7
