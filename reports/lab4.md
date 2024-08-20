@@ -1,6 +1,5 @@
 # 实验报告
 ## 1. 增加的内容
-- 支持了基于缺页异常机制的 Lazy 按需分配机制（编程题 3） from `ch4` Branch
 - 重写了 `sys_get_time` 
 - 实现了仅用于申请内存的 `sys_mmap, sys_munmap` 
 
