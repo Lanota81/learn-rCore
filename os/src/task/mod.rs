@@ -155,6 +155,13 @@ impl TaskManager {
             shutdown(false);
         }
     }
+
+    /// lazy alloc
+    fn lazy_alloc(&self, addr: usize) -> bool {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].lazy_alloc(addr)
+    }
 }
 
 /// Run the first task in task list.
@@ -203,4 +210,9 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// Change the current 'Running' task's program break
 pub fn change_program_brk(size: i32) -> Option<usize> {
     TASK_MANAGER.change_current_program_brk(size)
+}
+
+/// lazy alloc
+pub fn lazy_alloc(addr: usize) -> bool {
+    TASK_MANAGER.lazy_alloc(addr)
 }

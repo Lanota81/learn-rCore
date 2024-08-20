@@ -69,8 +69,8 @@ impl TaskControlBlock {
             self.memory_set
                 .shrink_to(VirtAddr(self.heap_bottom), VirtAddr(new_brk as usize))
         } else {
-            self.memory_set
-                .append_to(VirtAddr(self.heap_bottom), VirtAddr(new_brk as usize))
+            // lazy alloc
+            true
         };
         if result {
             self.program_brk = new_brk as usize;
@@ -78,6 +78,14 @@ impl TaskControlBlock {
         } else {
             None
         }
+    }
+    /// lazy alloc
+    pub fn lazy_alloc(&mut self, addr: usize) -> bool {
+        if addr >= self.program_brk || addr < self.heap_bottom {
+            println!("[kernel] Lazy_alloc: address not in heap!");
+            return false;
+        }
+        self.memory_set.append_to(VirtAddr(self.heap_bottom), VirtAddr(addr + 1))
     }
 }
 
