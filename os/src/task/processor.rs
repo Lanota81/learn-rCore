@@ -6,6 +6,7 @@ use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
+use log::debug;
 ///Processor management structure
 pub struct Processor {
     ///The task currently executing on the current processor
@@ -50,6 +51,11 @@ pub fn run_tasks() {
             let mut task_inner = task.inner_exclusive_access();
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = TaskStatus::Running;
+            if let Some(ppid) = processor.current().as_ref() {
+                debug!("[kernel] Process {} suspended and Process {} running.", ppid.getpid(), task.getpid());
+            } else {
+                debug!("[kernel] Process {} starts running.", task.getpid());
+            }
             drop(task_inner);
             // release coming task TCB manually
             processor.current = Some(task);

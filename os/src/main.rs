@@ -43,8 +43,10 @@ pub mod syscall;
 pub mod task;
 mod timer;
 pub mod trap;
+pub mod logging;
 
 use core::arch::global_asm;
+pub use log::*;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -67,6 +69,7 @@ pub fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     mm::init();
     mm::remap_test();
+    logging::init();
     task::add_initproc();
     println!("after initproc!");
     trap::init();
