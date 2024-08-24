@@ -1,17 +1,12 @@
-use crate::task::{
-    suspend_current_and_run_next,
-    exit_current_and_run_next,
-    current_task,
-    current_user_token,
-    add_task,
-};
-use crate::mm::{
-    translated_str,
-    translated_refmut,
-};
 use crate::loader::get_app_data_by_name;
-use alloc::sync::Arc;
+use crate::mm::{translated_refmut, translated_str, PageTable, VirtAddr};
+use crate::task::{
+    add_task, current_task, current_user_token, exit_current_and_run_next,
+    suspend_current_and_run_next, mmap_in_task, munmap_in_task, 
+};
+use crate::config::PAGE_SIZE;
 use crate::timer::get_time_us;
+use alloc::sync::Arc;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -60,6 +55,22 @@ pub fn sys_exec(path: *const u8) -> isize {
     }
 }
 
+pub fn sys_spawn(path: *const u8) -> isize {
+    let token = current_user_token();
+    let path = translated_str(token, path);
+    if let Some(data) = get_app_data_by_name(path.as_str()) {
+        let task = current_task().unwrap();
+        let new_task = task.spawn(data);
+        let new_pid = new_task.pid.0;
+        let trap_cx = new_task.inner_exclusive_access().get_trap_cx();
+        trap_cx.x[10] = 0;
+        add_task(new_task);
+        new_pid as isize
+    } else {
+        -1
+    }
+}
+
 /// If there is not a child process whose pid is same as given, return -1.
 /// Else if there is a child process but it is still running, return -2.
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
@@ -68,21 +79,20 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 
     // ---- access current TCB exclusively
     let mut inner = task.inner_exclusive_access();
-    if inner.children
+    if inner
+        .children
         .iter()
-        .find(|p| {pid == -1 || pid as usize == p.getpid()})
-        .is_none() {
+        .find(|p| pid == -1 || pid as usize == p.getpid())
+        .is_none()
+    {
         return -1;
         // ---- release current PCB
     }
-    let pair = inner.children
-        .iter()
-        .enumerate()
-        .find(|(_, p)| {
-            // ++++ temporarily access child PCB lock exclusively
-            p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
-            // ++++ release child PCB
-        });
+    let pair = inner.children.iter().enumerate().find(|(_, p)| {
+        // ++++ temporarily access child PCB lock exclusively
+        p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
+        // ++++ release child PCB
+    });
     if let Some((idx, _)) = pair {
         let child = inner.children.remove(idx);
         // confirm that child will be deallocated after removing from children list
@@ -101,11 +111,29 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     let _us = get_time_us();
-    // unsafe {
-    //     *ts = TimeVal {
-    //         sec: us / 1_000_000,
-    //         usec: us % 1_000_000,
-    //     };
-    // }
+    let pa = PageTable::from_token(current_user_token())
+        .translate_va(VirtAddr(_ts as usize))
+        .unwrap()
+        .get_mut();
+    let cur = get_time_us();
+    *pa = TimeVal {
+        sec: cur / 1_000_000,
+        usec: cur % 1_000_000,
+    };
     0
+}
+
+pub fn sys_mmap(start: usize, len: usize, prot: usize) -> isize {
+    if prot & !7 != 0 || prot == 0 { return -1; }
+    if start & (PAGE_SIZE - 1) != 0 { return -1; }
+    let end = VirtAddr::from(start + len).ceil();
+    let start = VirtAddr::from(start).floor();
+    mmap_in_task(start, end, prot)
+}
+
+pub fn sys_munmap(start: usize, len: usize) -> isize {
+    if start & (PAGE_SIZE - 1) != 0 { return -1; }
+    let end = VirtAddr::from(start + len).ceil();
+    let start = VirtAddr::from(start).floor();
+    munmap_in_task(start, end)
 }

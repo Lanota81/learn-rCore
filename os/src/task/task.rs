@@ -1,12 +1,12 @@
-use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr};
-use crate::trap::{TrapContext, trap_handler};
-use crate::config::TRAP_CONTEXT;
-use crate::sync::UPSafeCell;
-use core::cell::RefMut;
 use super::TaskContext;
-use super::{PidHandle, pid_alloc, KernelStack};
-use alloc::sync::{Weak, Arc};
+use super::{pid_alloc, KernelStack, PidHandle};
+use crate::config::TRAP_CONTEXT;
+use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE, VirtPageNum, MapPermission};
+use crate::sync::UPSafeCell;
+use crate::trap::{trap_handler, TrapContext};
+use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
+use core::cell::RefMut;
 
 pub struct TaskControlBlock {
     // immutable
@@ -66,16 +66,18 @@ impl TaskControlBlock {
         let task_control_block = Self {
             pid: pid_handle,
             kernel_stack,
-            inner: unsafe { UPSafeCell::new(TaskControlBlockInner {
-                trap_cx_ppn,
-                base_size: user_sp,
-                task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-                task_status: TaskStatus::Ready,
-                memory_set,
-                parent: None,
-                children: Vec::new(),
-                exit_code: 0,
-            })},
+            inner: unsafe {
+                UPSafeCell::new(TaskControlBlockInner {
+                    trap_cx_ppn,
+                    base_size: user_sp,
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    task_status: TaskStatus::Ready,
+                    memory_set,
+                    parent: None,
+                    children: Vec::new(),
+                    exit_code: 0,
+                })
+            },
         };
         // prepare TrapContext in user space
         let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
@@ -117,9 +119,7 @@ impl TaskControlBlock {
         // ---- access parent PCB exclusively
         let mut parent_inner = self.inner_exclusive_access();
         // copy user space(include trap context)
-        let memory_set = MemorySet::from_existed_user(
-            &parent_inner.memory_set
-        );
+        let memory_set = MemorySet::from_existed_user(&parent_inner.memory_set);
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
@@ -131,16 +131,18 @@ impl TaskControlBlock {
         let task_control_block = Arc::new(TaskControlBlock {
             pid: pid_handle,
             kernel_stack,
-            inner: unsafe { UPSafeCell::new(TaskControlBlockInner {
-                trap_cx_ppn,
-                base_size: parent_inner.base_size,
-                task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-                task_status: TaskStatus::Ready,
-                memory_set,
-                parent: Some(Arc::downgrade(self)),
-                children: Vec::new(),
-                exit_code: 0,
-            })},
+            inner: unsafe {
+                UPSafeCell::new(TaskControlBlockInner {
+                    trap_cx_ppn,
+                    base_size: parent_inner.base_size,
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    task_status: TaskStatus::Ready,
+                    memory_set,
+                    parent: Some(Arc::downgrade(self)),
+                    children: Vec::new(),
+                    exit_code: 0,
+                })
+            },
         });
         // add child
         parent_inner.children.push(task_control_block.clone());
@@ -152,6 +154,65 @@ impl TaskControlBlock {
         task_control_block
         // ---- release parent PCB automatically
         // **** release children PCB automatically
+    }
+    pub fn spawn(self: &Arc<Self>, elf_data: &[u8]) -> Arc<Self> {
+        let mut inner = self.inner.exclusive_access();
+        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
+        let trap_cx_ppn = memory_set
+            .translate(VirtAddr::from(TRAP_CONTEXT).into())
+            .unwrap()
+            .ppn();
+
+        let pid_handle = pid_alloc();
+        let kernel_stack = KernelStack::new(&pid_handle);
+        let kernel_stack_top = kernel_stack.get_top();
+        let task_control_block = Arc::new(TaskControlBlock {
+            pid: pid_handle,
+            kernel_stack,
+            inner: unsafe {
+                UPSafeCell::new(TaskControlBlockInner {
+                    trap_cx_ppn,
+                    base_size: user_sp,
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    task_status: TaskStatus::Ready,
+                    memory_set,
+                    parent: Some(Arc::downgrade(self)),
+                    children: Vec::new(),
+                    exit_code: 0,
+                })
+            },
+        });
+        inner.children.push(task_control_block.clone());
+        let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
+        *trap_cx = TrapContext::app_init_context(
+            entry_point,
+            user_sp,
+            KERNEL_SPACE.exclusive_access().token(),
+            kernel_stack_top,
+            trap_handler as usize,
+        );
+        task_control_block
+    }
+    pub fn mmap_in_task(self: &Arc<Self>, start: VirtPageNum, end: VirtPageNum, prot: usize) -> isize {
+        let ms = &mut self.inner.exclusive_access().memory_set;
+        for vpn in usize::from(start)..usize::from(end) {
+            if let Some(pte) = ms.translate(VirtPageNum(vpn)) {
+                if pte.is_valid() { return -1; }
+            }
+        }
+        let per = MapPermission::from_bits((prot << 1) as u8).unwrap() | MapPermission::U;
+        ms.insert_framed_area(VirtAddr::from(start), VirtAddr::from(end), per);
+        0
+    }
+
+    pub fn munmap_in_task(self: &Arc<Self>, start: VirtPageNum, end: VirtPageNum) -> isize {
+        let ms = &mut self.inner.exclusive_access().memory_set;
+        for vpn in usize::from(start)..usize::from(end) {
+            if let Some(pte) = ms.translate(VirtPageNum(vpn)) {
+                if !pte.is_valid() { return -1; }
+            }
+        }
+        ms.munmap(start, end)
     }
     pub fn getpid(&self) -> usize {
         self.pid.0

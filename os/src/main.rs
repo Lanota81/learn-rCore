@@ -1,8 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(global_asm)]
-#![feature(asm)]
-#![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
 extern crate alloc;
@@ -22,6 +19,10 @@ mod task;
 mod timer;
 mod sync;
 mod mm;
+pub mod logging;
+
+use core::arch::global_asm;
+pub use log::*;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
@@ -45,6 +46,7 @@ pub fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     mm::init();
     mm::remap_test();
+    logging::init();
     task::add_initproc();
     println!("after initproc!");
     trap::init();
