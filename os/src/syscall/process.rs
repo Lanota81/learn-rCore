@@ -1,16 +1,11 @@
-use crate::task::{
-    suspend_current_and_run_next,
-    exit_current_and_run_next,
-    current_task,
-    current_user_token,
-    add_task,
-};
-use crate::timer::get_time_us;
-use crate::mm::{
-    translated_str,
-    translated_refmut,
-};
 use crate::loader::get_app_data_by_name;
+use crate::mm::{translated_refmut, translated_str, PageTable, VirtAddr};
+use crate::task::{
+    add_task, current_task, current_user_token, exit_current_and_run_next,
+    suspend_current_and_run_next, mmap_in_task, munmap_in_task, 
+};
+use crate::config::PAGE_SIZE;
+use crate::timer::get_time_us;
 use alloc::sync::Arc;
 
 #[repr(C)]
@@ -27,17 +22,6 @@ pub fn sys_exit(exit_code: i32) -> ! {
 
 pub fn sys_yield() -> isize {
     suspend_current_and_run_next();
-    0
-}
-
-pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
-    let _us = get_time_us();
-    // unsafe {
-    //     *ts = TimeVal {
-    //         sec: us / 1_000_000,
-    //         usec: us % 1_000_000,
-    //     };
-    // }
     0
 }
 
@@ -66,6 +50,22 @@ pub fn sys_exec(path: *const u8) -> isize {
         let task = current_task().unwrap();
         task.exec(data);
         0
+    } else {
+        -1
+    }
+}
+
+pub fn sys_spawn(path: *const u8) -> isize {
+    let token = current_user_token();
+    let path = translated_str(token, path);
+    if let Some(data) = get_app_data_by_name(path.as_str()) {
+        let task = current_task().unwrap();
+        let new_task = task.spawn(data);
+        let new_pid = new_task.pid.0;
+        let trap_cx = new_task.inner_exclusive_access().get_trap_cx();
+        trap_cx.x[10] = 0;
+        add_task(new_task);
+        new_pid as isize
     } else {
         -1
     }
@@ -108,4 +108,33 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
         -2
     }
     // ---- release current PCB lock automatically
+}
+
+pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
+    let _us = get_time_us();
+    let pa = PageTable::from_token(current_user_token())
+        .translate_va(VirtAddr(_ts as usize))
+        .unwrap()
+        .get_mut();
+    let cur = get_time_us();
+    *pa = TimeVal {
+        sec: cur / 1_000_000,
+        usec: cur % 1_000_000,
+    };
+    0
+}
+
+pub fn sys_mmap(start: usize, len: usize, prot: usize) -> isize {
+    if prot & !7 != 0 || prot == 0 { return -1; }
+    if start & (PAGE_SIZE - 1) != 0 { return -1; }
+    let end = VirtAddr::from(start + len).ceil();
+    let start = VirtAddr::from(start).floor();
+    mmap_in_task(start, end, prot)
+}
+
+pub fn sys_munmap(start: usize, len: usize) -> isize {
+    if start & (PAGE_SIZE - 1) != 0 { return -1; }
+    let end = VirtAddr::from(start + len).ceil();
+    let start = VirtAddr::from(start).floor();
+    munmap_in_task(start, end)
 }

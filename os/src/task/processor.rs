@@ -1,10 +1,11 @@
+use super::__switch;
+use super::{fetch_task, TaskStatus};
 use super::{TaskContext, TaskControlBlock};
+use crate::sync::UPSafeCell;
+use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
-use super::{fetch_task, TaskStatus};
-use super::__switch;
-use crate::trap::TrapContext;
-use crate::sync::UPSafeCell;
+use log::debug;
 
 pub struct Processor {
     current: Option<Arc<TaskControlBlock>>,
@@ -45,6 +46,15 @@ pub fn run_tasks() {
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = TaskStatus::Running;
             drop(task_inner);
+            if let Some(ppid) = processor.current().as_ref() {
+                debug!(
+                    "[kernel] Process {} suspended and Process {} running.",
+                    ppid.getpid(),
+                    task.getpid()
+                );
+            } else {
+                debug!("[kernel] Process {} starts running.", task.getpid());
+            }
             // release coming task TCB manually
             processor.current = Some(task);
             // release processor manually
@@ -74,7 +84,10 @@ pub fn current_user_token() -> usize {
 }
 
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    current_task().unwrap().inner_exclusive_access().get_trap_cx()
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .get_trap_cx()
 }
 
 pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {

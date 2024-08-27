@@ -6,6 +6,7 @@ mod processor;
 mod pid;
 
 use crate::loader::get_app_data_by_name;
+use crate::mm::VirtPageNum;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 use alloc::sync::Arc;
@@ -83,4 +84,12 @@ lazy_static! {
 
 pub fn add_initproc() {
     add_task(INITPROC.clone());
+}
+
+pub fn mmap_in_task(start: VirtPageNum, end: VirtPageNum, prot: usize) -> isize {
+    current_task().unwrap().mmap_in_task(start, end, prot)
+}
+
+pub fn munmap_in_task(start: VirtPageNum, end: VirtPageNum) -> isize {
+    current_task().unwrap().munmap_in_task(start, end)
 }
