@@ -7,5 +7,5 @@ pub trait File : Send + Sync {
     fn write(&self, buf: UserBuffer) -> usize;
 }
 
-pub use pipe::{Pipe, make_pipe};
+pub use pipe::make_pipe;
 pub use stdio::{Stdin, Stdout};

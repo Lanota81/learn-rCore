@@ -15,6 +15,10 @@ static TESTS: &[&str] = &[
     "test_unmap2\0",
     "test_spawn0\0",
     "test_spawn1\0",
+    "test_mail0\0",
+    "test_mail1\0",
+    "test_mail2\0",
+    "test_mail3\0",
 ];
 
 use user_lib::{exec, fork, waitpid};
@@ -39,6 +43,6 @@ pub fn main() -> i32 {
             );
         }
     }
-    println!("ch5 Usertests passed!");
+    println!("ch6 Usertests passed!");
     0
 }

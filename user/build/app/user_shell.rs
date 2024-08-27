@@ -15,6 +15,8 @@ use alloc::string::String;
 use user_lib::console::getchar;
 use user_lib::{exec, flush, fork, waitpid};
 
+// 利用 pipe 机制为 Shell 实现管道运算符 '|'
+
 #[no_mangle]
 pub fn main() -> i32 {
     println!("Rust user shell");

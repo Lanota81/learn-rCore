@@ -1,4 +1,4 @@
-use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr};
+use crate::mm::{MemorySet, PhysPageNum, KERNEL_SPACE, VirtAddr, VirtPageNum, MapPermission};
 use crate::trap::{TrapContext, trap_handler};
 use crate::config::TRAP_CONTEXT;
 use crate::sync::UPSafeCell;
