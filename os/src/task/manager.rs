@@ -19,6 +19,14 @@ impl TaskManager {
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.ready_queue.pop_front()
     }
+    pub fn get_task_by_pid(&self, pid: usize) -> Option<Arc<TaskControlBlock>> {
+        for task in &self.ready_queue {
+            if task.getpid() == pid {
+                return Some(Arc::clone(task));
+            }
+        }
+        None
+    }
 }
 
 lazy_static! {
@@ -33,4 +41,8 @@ pub fn add_task(task: Arc<TaskControlBlock>) {
 
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
+}
+
+pub fn get_task_by_pid(pid: usize) -> Option<Arc<TaskControlBlock>> {
+    TASK_MANAGER.exclusive_access().get_task_by_pid(pid)
 }

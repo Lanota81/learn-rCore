@@ -12,6 +12,8 @@ const SYSCALL_WAITPID: usize = 260;
 const SYSCALL_SPAWN: usize = 400;
 const SYSCALL_MMAP: usize = 222;
 const SYSCALL_MUNMAP: usize = 215;
+const SYSCALL_MAILREAD: usize = 401;
+const SYSCALL_MAILWRITE: usize = 402;
 
 mod fs;
 mod process;
@@ -35,6 +37,8 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_MMAP => sys_mmap(args[0], args[1], args[2]),
         SYSCALL_MUNMAP => sys_munmap(args[0], args[1]),
         SYSCALL_SPAWN => sys_spawn(args[0] as *const u8),
+        SYSCALL_MAILREAD => sys_mailread(args[0] as *mut u8, args[1]),
+        SYSCALL_MAILWRITE => sys_mailwrite(args[0], args[1] as *mut u8, args[2]),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }

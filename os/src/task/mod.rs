@@ -4,9 +4,10 @@ mod task;
 mod manager;
 mod processor;
 mod pid;
+mod mail;
 
 use crate::loader::get_app_data_by_name;
-use crate::mm::VirtPageNum;
+use crate::mm::{VirtAddr, VirtPageNum, PageTable};
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 use alloc::sync::Arc;
@@ -21,9 +22,11 @@ pub use processor::{
     current_trap_cx,
     take_current_task,
     schedule,
+    current_task_pid,
 };
-pub use manager::add_task;
+pub use manager::{add_task, get_task_by_pid};
 pub use pid::{PidHandle, pid_alloc, KernelStack};
+pub use mail::{Post, Mail, BUF_LEN};
 
 pub fn suspend_current_and_run_next() {
     // There must be an application running.
@@ -92,4 +95,17 @@ pub fn mmap_in_task(start: VirtPageNum, end: VirtPageNum, prot: usize) -> isize 
 
 pub fn munmap_in_task(start: VirtPageNum, end: VirtPageNum) -> isize {
     current_task().unwrap().munmap_in_task(start, end)
+}
+
+pub fn is_valid_addr(addr: usize) -> bool {
+    let token = current_user_token();
+    let virt = VirtAddr::from(addr);
+    let vpn = VirtPageNum::from(virt.floor());
+
+    if let Some(_t) = PageTable::from_token(token)
+        .translate(vpn) {
+            true
+        } else {
+            false
+        }
 }

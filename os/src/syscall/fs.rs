@@ -1,6 +1,7 @@
-use crate::mm::{UserBuffer, translated_byte_buffer, translated_refmut};
-use crate::task::{current_user_token, current_task};
 use crate::fs::make_pipe;
+use crate::mm::{translated_byte_buffer, translated_refmut, UserBuffer};
+use crate::task::{current_task, current_task_pid, current_user_token, get_task_by_pid, is_valid_addr, Post, BUF_LEN};
+use alloc::sync::Arc;
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
@@ -13,9 +14,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         let file = file.clone();
         // release current task TCB manually to avoid multi-borrow
         drop(inner);
-        file.write(
-            UserBuffer::new(translated_byte_buffer(token, buf, len))
-        ) as isize
+        file.write(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
     } else {
         -1
     }
@@ -32,9 +31,7 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
         let file = file.clone();
         // release current task TCB manually to avoid multi-borrow
         drop(inner);
-        file.read(
-            UserBuffer::new(translated_byte_buffer(token, buf, len))
-        ) as isize
+        file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
     } else {
         -1
     }
@@ -65,4 +62,66 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
     *translated_refmut(token, pipe) = read_fd;
     *translated_refmut(token, unsafe { pipe.add(1) }) = write_fd;
     0
+}
+
+pub fn sys_mailread(buf: *mut u8, len: usize) -> isize {
+    if !is_valid_addr(buf as usize) {
+        return -1;
+    }
+    let task = current_task().unwrap();
+    let token = current_user_token();
+    let inner = task.inner_exclusive_access();
+    let mut mailbox = inner.mailbox.exclusive_access();
+    if len == 0 {
+        return if mailbox.readable() { 0 } else { -1 };
+    }
+    let len = len.min(BUF_LEN);
+    if let Some(p) = mailbox.fetch() {
+        p.read(&mut UserBuffer::new(translated_byte_buffer(
+            token, buf, len,
+        )))
+    } else {
+        -1
+    }
+}
+
+pub fn sys_mailwrite(pid: usize, buf: *mut u8, len: usize) -> isize {
+    if !is_valid_addr(buf as usize) {
+        return -1;
+    }
+    let token = current_user_token();
+    if pid == current_task_pid() {
+        let task = current_task().unwrap();
+        let inner = task.inner_exclusive_access();
+        let mut mailbox = inner.mailbox.exclusive_access();
+        if len == 0 {
+            return if mailbox.writable() { 0 } else { -1 };
+        }
+
+        let len = len.min(BUF_LEN);
+        if mailbox.push(&Arc::new(Post::new(UserBuffer::new(
+            translated_byte_buffer(token, buf, len),
+        )))) != -1 {
+            len as isize
+        } else {
+            -1
+        }
+    } else if let Some(task) = get_task_by_pid(pid) {
+        let inner = task.inner_exclusive_access();
+        let mut mailbox = inner.mailbox.exclusive_access();
+        if len == 0 {
+            return if mailbox.writable() { 0 } else { -1 };
+        }
+        
+        let len = len.min(BUF_LEN);
+        if mailbox.push(&Arc::new(Post::new(UserBuffer::new(
+            translated_byte_buffer(token, buf, len),
+        )))) != -1 {
+            len as isize
+        } else {
+            -1
+        }
+    } else {
+        -1
+    }
 }

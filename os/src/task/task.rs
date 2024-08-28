@@ -4,6 +4,7 @@ use crate::config::TRAP_CONTEXT;
 use crate::sync::UPSafeCell;
 use core::cell::RefMut;
 use super::TaskContext;
+use super::Mail;
 use super::{PidHandle, pid_alloc, KernelStack};
 use alloc::sync::{Weak, Arc};
 use alloc::vec;
@@ -28,6 +29,7 @@ pub struct TaskControlBlockInner {
     pub children: Vec<Arc<TaskControlBlock>>,
     pub exit_code: i32,
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+    pub mailbox: UPSafeCell<Mail>,
 }
 
 impl TaskControlBlockInner {
@@ -89,6 +91,7 @@ impl TaskControlBlock {
                     // 2 -> stderr
                     Some(Arc::new(Stdout)),
                 ],
+                mailbox: UPSafeCell::new(Mail::new()),
             })},
         };
         // prepare TrapContext in user space
@@ -164,6 +167,7 @@ impl TaskControlBlock {
                 children: Vec::new(),
                 exit_code: 0,
                 fd_table: new_fd_table,
+                mailbox: UPSafeCell::new(Mail::new()),
             })},
         });
         // add child
@@ -202,6 +206,7 @@ impl TaskControlBlock {
                     children: Vec::new(),
                     exit_code: 0,
                     fd_table: Vec::new(),
+                    mailbox: UPSafeCell::new(Mail::new()),
                 })
             },
         });

@@ -14,7 +14,6 @@ pub use page_table::{
     translated_str,
     translated_refmut,
     UserBuffer,
-    UserBufferIterator,
 };
 pub use memory_set::{MemorySet, KERNEL_SPACE, MapPermission};
 pub use memory_set::remap_test;
