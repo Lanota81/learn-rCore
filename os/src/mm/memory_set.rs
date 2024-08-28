@@ -7,6 +7,7 @@ use alloc::vec::Vec;
 use riscv::register::satp;
 use alloc::sync::Arc;
 use lazy_static::*;
+use core::arch::asm;
 use crate::sync::UPSafeCell;
 use crate::config::{
     MEMORY_END,
@@ -225,6 +226,19 @@ impl MemorySet {
     }
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
+    }
+    pub fn munmap(&mut self, start: VirtPageNum, end: VirtPageNum) -> isize {
+        let vr = VPNRange::new(start, end);
+        let n = self.areas.len();
+        for i in 0..n {
+            let ma = &mut self.areas[i];
+            if ma.vpn_range == vr {
+                ma.unmap(&mut self.page_table);
+                self.areas.remove(i);
+                return 0;
+            }
+        }
+        -1
     }
     pub fn recycle_data_pages(&mut self) {
         //*self = Self::new_bare();

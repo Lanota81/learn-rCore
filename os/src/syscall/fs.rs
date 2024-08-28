@@ -4,7 +4,7 @@ use crate::mm::{
     translated_refmut,
     translated_str,
 };
-use crate::task::{current_user_token, current_task};
+use crate::task::{current_task, current_task_pid, current_user_token, get_task_by_pid, is_valid_addr, Post, BUF_LEN};
 use crate::fs::{make_pipe, OpenFlags, open_file};
 use alloc::sync::Arc;
 
@@ -108,4 +108,65 @@ pub fn sys_dup(fd: usize) -> isize {
     let new_fd = inner.alloc_fd();
     inner.fd_table[new_fd] = Some(Arc::clone(inner.fd_table[fd].as_ref().unwrap()));
     new_fd as isize
+}
+pub fn sys_mailread(buf: *mut u8, len: usize) -> isize {
+    if !is_valid_addr(buf as usize) {
+        return -1;
+    }
+    let task = current_task().unwrap();
+    let token = current_user_token();
+    let inner = task.inner_exclusive_access();
+    let mut mailbox = inner.mailbox.exclusive_access();
+    if len == 0 {
+        return if mailbox.readable() { 0 } else { -1 };
+    }
+    let len = len.min(BUF_LEN);
+    if let Some(p) = mailbox.fetch() {
+        p.read(&mut UserBuffer::new(translated_byte_buffer(
+            token, buf, len,
+        )))
+    } else {
+        -1
+    }
+}
+
+pub fn sys_mailwrite(pid: usize, buf: *mut u8, len: usize) -> isize {
+    if !is_valid_addr(buf as usize) {
+        return -1;
+    }
+    let token = current_user_token();
+    if pid == current_task_pid() {
+        let task = current_task().unwrap();
+        let inner = task.inner_exclusive_access();
+        let mut mailbox = inner.mailbox.exclusive_access();
+        if len == 0 {
+            return if mailbox.writable() { 0 } else { -1 };
+        }
+
+        let len = len.min(BUF_LEN);
+        if mailbox.push(&Arc::new(Post::new(UserBuffer::new(
+            translated_byte_buffer(token, buf, len),
+        )))) != -1 {
+            len as isize
+        } else {
+            -1
+        }
+    } else if let Some(task) = get_task_by_pid(pid) {
+        let inner = task.inner_exclusive_access();
+        let mut mailbox = inner.mailbox.exclusive_access();
+        if len == 0 {
+            return if mailbox.writable() { 0 } else { -1 };
+        }
+        
+        let len = len.min(BUF_LEN);
+        if mailbox.push(&Arc::new(Post::new(UserBuffer::new(
+            translated_byte_buffer(token, buf, len),
+        )))) != -1 {
+            len as isize
+        } else {
+            -1
+        }
+    } else {
+        -1
+    }
 }

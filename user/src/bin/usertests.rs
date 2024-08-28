@@ -15,13 +15,12 @@ static TESTS: &[&str] = &[
     "yield\0",
     "pipetest\0",
     "filetest_simple\0",
-    // 正确实现 sys_get_time 后这些程序才能运行
-    // "pipe_large_test\0",
-    // "forktest2\0",
-    // "sleep\0",
-    // "sleep_simple\0",
-    // "forktree\0",
-    // "huge_write\0",
+    "pipe_large_test\0",
+    "forktest2\0",
+    "sleep\0",
+    "sleep_simple\0",
+    "forktree\0",
+    "huge_write\0",
 ];
 
 use user_lib::{exec, fork, waitpid};
