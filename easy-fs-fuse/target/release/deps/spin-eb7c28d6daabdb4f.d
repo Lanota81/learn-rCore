@@ -1,0 +1,14 @@
+/root/learn-rCore/easy-fs-fuse/target/release/deps/libspin-eb7c28d6daabdb4f.rmeta: /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lib.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/barrier.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lazy.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/spin.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/ticket.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/once.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/rw_lock.rs
+
+/root/learn-rCore/easy-fs-fuse/target/release/deps/libspin-eb7c28d6daabdb4f.rlib: /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lib.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/barrier.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lazy.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/spin.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/ticket.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/once.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/rw_lock.rs
+
+/root/learn-rCore/easy-fs-fuse/target/release/deps/spin-eb7c28d6daabdb4f.d: /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lib.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/barrier.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lazy.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/spin.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/ticket.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/once.rs /root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/rw_lock.rs
+
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lib.rs:
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/barrier.rs:
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/lazy.rs:
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex.rs:
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/spin.rs:
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/mutex/ticket.rs:
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/once.rs:
+/root/.cargo/registry/src/index.crates.io-6f17d22bba15001f/spin-0.7.1/src/rw_lock.rs:

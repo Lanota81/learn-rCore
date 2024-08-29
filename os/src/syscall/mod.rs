@@ -16,9 +16,14 @@ const SYSCALL_MMAP: usize = 222;
 const SYSCALL_MUNMAP: usize = 215;
 const SYSCALL_MAILREAD: usize = 401;
 const SYSCALL_MAILWRITE: usize = 402;
+const SYSCALL_FSTAT: usize = 80;
+pub const SYSCALL_LINKAT: usize = 37;
+const SYSCALL_UNLINKAT: usize = 35;
 
 mod fs;
 mod process;
+
+use core::panic;
 
 use fs::*;
 use process::*;
@@ -43,6 +48,15 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_SPAWN => sys_spawn(args[0] as *const u8),
         SYSCALL_MAILREAD => sys_mailread(args[0] as *mut u8, args[1]),
         SYSCALL_MAILWRITE => sys_mailwrite(args[0], args[1] as *mut u8, args[2]),
+        SYSCALL_FSTAT => sys_fstat(args[0] as i32, args[1] as usize),
+        SYSCALL_UNLINKAT => sys_unlinkat(args[0] as i32, args[1] as *const u8, args[2] as u32),
+        _ => panic!("Unsupported syscall_id: {}", syscall_id),
+    }
+}
+
+pub fn syscall6(syscall_id: usize, args: [usize; 6]) -> isize {
+    match syscall_id {
+        SYSCALL_LINKAT => sys_linkat(args[0] as i32, args[1] as *const u8, args[2] as i32, args[3] as *const u8, args[4] as u32),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }

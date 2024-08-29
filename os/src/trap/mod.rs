@@ -13,7 +13,7 @@ use riscv::register::{
     stval,
     sie,
 };
-use crate::syscall::syscall;
+use crate::syscall::{syscall, syscall6, SYSCALL_LINKAT};
 use crate::task::{
     exit_current_and_run_next,
     suspend_current_and_run_next,
@@ -56,7 +56,10 @@ pub fn trap_handler() -> ! {
             let mut cx = current_trap_cx();
             cx.sepc += 4;
             // get system call return value
-            let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+            let result = match cx.x[17] { 
+                SYSCALL_LINKAT => syscall6(cx.x[17], [cx.x[10], cx.x[11], cx.x[12], cx.x[13], cx.x[14], cx.x[15]]),
+                _ => syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]),
+            };
             // cx is changed during sys_exec, so we have to call it again
             cx = current_trap_cx();
             cx.x[10] = result as usize;

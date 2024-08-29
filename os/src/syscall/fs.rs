@@ -5,7 +5,7 @@ use crate::mm::{
     translated_str,
 };
 use crate::task::{current_task, current_task_pid, current_user_token, get_task_by_pid, is_valid_addr, Post, BUF_LEN};
-use crate::fs::{make_pipe, OpenFlags, open_file};
+use crate::fs::{make_pipe, OpenFlags, open_file, OSInode, Stat, ROOT_INODE};
 use alloc::sync::Arc;
 
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
@@ -109,6 +109,7 @@ pub fn sys_dup(fd: usize) -> isize {
     inner.fd_table[new_fd] = Some(Arc::clone(inner.fd_table[fd].as_ref().unwrap()));
     new_fd as isize
 }
+
 pub fn sys_mailread(buf: *mut u8, len: usize) -> isize {
     if !is_valid_addr(buf as usize) {
         return -1;
@@ -169,4 +170,44 @@ pub fn sys_mailwrite(pid: usize, buf: *mut u8, len: usize) -> isize {
     } else {
         -1
     }
+}
+
+pub fn sys_fstat(fd: i32, st: usize) -> isize {
+    let task = current_task().unwrap();
+    let token = current_user_token();
+    let inner = task.inner_exclusive_access();
+    if let Some(inode) = &inner.fd_table[fd as usize] {
+        let tp = inode.clone();
+        let inode = tp.as_ref();
+        let user = UserBuffer::new(translated_byte_buffer(token, st as *const u8, core::mem::size_of::<Stat>()));
+        drop(inner);
+        unsafe {
+            (*(inode as *const _ as *const OSInode)).write_fstat(user);
+        }
+        0
+    } else {
+        -1
+    }
+}
+
+pub fn sys_linkat(olddirfd: i32, oldpath: *const u8, newdirfd: i32, newpath: *const u8, flags: u32) -> isize {
+    assert!(olddirfd == -100 && newdirfd == -100 && flags == 0);
+
+    let _task = current_task().unwrap();
+    let token = current_user_token();
+    let old_filename = translated_str(token, oldpath);
+    let new_filename = translated_str(token, newpath);
+    if let Some(_fd) = ROOT_INODE.linkat_same_dir(old_filename.as_str(), new_filename.as_str()) {
+        0
+    } else {
+        -1
+    }
+}
+
+pub fn sys_unlinkat(dirfd: i32, path: *const u8, flags: u32) -> isize {
+    assert!(dirfd == -100 && flags == 0);
+
+    let token = current_user_token();
+    let filename = translated_str(token, path);
+    ROOT_INODE.unlinkat_same_dir(filename.as_str())
 }

@@ -10,6 +10,7 @@ use bitflags::*;
 use alloc::vec::Vec;
 use super::File;
 use crate::mm::UserBuffer;
+pub use easy_fs::Stat;
 
 pub struct OSInode {
     readable: bool,
@@ -50,6 +51,19 @@ impl OSInode {
             v.extend_from_slice(&buffer[..len]);
         }
         v
+    }
+
+    pub fn write_fstat(&self, buf: UserBuffer) {
+        let inner = self.inner.exclusive_access();
+        let stat = inner.inode.fstat();
+        let mut cur_pos = 0;
+        unsafe {
+            for bf in buf.buffers {
+                let len = bf.len();
+                (bf as *mut _ as *mut u8).copy_from((&stat as *const _ as *const u8).add(cur_pos), len);
+                cur_pos += len;
+            }
+        }
     }
 }
 

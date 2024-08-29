@@ -13,4 +13,4 @@ pub trait File : Send + Sync {
 
 pub use pipe::make_pipe;
 pub use stdio::{Stdin, Stdout};
-pub use inode::{open_file, OpenFlags, list_apps};
+pub use inode::{open_file, OpenFlags, list_apps, OSInode, Stat, ROOT_INODE};

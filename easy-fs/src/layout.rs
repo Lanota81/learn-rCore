@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 const EFS_MAGIC: u32 = 0x3b800001;
-const INODE_DIRECT_COUNT: usize = 28;
+const INODE_DIRECT_COUNT: usize = 27;
 const NAME_LENGTH_LIMIT: usize = 27;
 const INODE_INDIRECT1_COUNT: usize = BLOCK_SZ / 4;
 const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
@@ -77,6 +77,7 @@ pub struct DiskInode {
     pub direct: [u32; INODE_DIRECT_COUNT],
     pub indirect1: u32,
     pub indirect2: u32,
+    pub nlink: u32,
     type_: DiskInodeType,
 }
 
@@ -87,6 +88,7 @@ impl DiskInode {
         self.direct.iter_mut().for_each(|v| *v = 0);
         self.indirect1 = 0;
         self.indirect2 = 0;
+        self.nlink = 1;
         self.type_ = type_;
     }
     pub fn is_dir(&self) -> bool {
@@ -397,6 +399,8 @@ impl DiskInode {
         }
         write_size
     }
+    pub fn linked(&mut self) { self.nlink += 1; }
+    pub fn unlinked(&mut self) { self.nlink -= 1; }
 }
 
 #[repr(C)]

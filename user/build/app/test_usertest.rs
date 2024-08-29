@@ -19,6 +19,9 @@ static TESTS: &[&str] = &[
     "test_mail1\0",
     "test_mail2\0",
     "test_mail3\0",
+    "test_file0\0",
+    "test_file1\0",
+    "test_file2\0",
 ];
 
 use user_lib::{exec, fork, waitpid};
@@ -31,7 +34,7 @@ pub fn main() -> i32 {
         println!("Usertests: Running {}", test);
         let pid = fork();
         if pid == 0 {
-            exec(*test);
+            exec(*test, &[0 as *const u8]);
             panic!("unreachable!");
         } else {
             let mut exit_code: i32 = Default::default();
@@ -43,6 +46,6 @@ pub fn main() -> i32 {
             );
         }
     }
-    println!("ch6 Usertests passed!");
+    println!("ch7 Usertests passed!");
     0
 }
