@@ -2,6 +2,7 @@
 ## 1. 增加的部分
 - 合并了 `ch6-lab` 的改动
 - 从 `ch6` 中取得了 `os/drivers/block/virtio_blk.rs` 的正确代码，详见 [遇到的问题](#2-遇到的问题)
+- 实现了 `sys_linkat, sys_unlinkat, sys_fstat` 三个系统调用
 
 ## 2. 遇到的问题
 - 本章 repo 分支实际是 lab6 的，仓库版本控制与教程不符，正确顺序为先第七章后第六章。
