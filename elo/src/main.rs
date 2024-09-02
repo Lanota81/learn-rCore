@@ -142,8 +142,8 @@ impl ScoreRecorder {
             println!("Error Occured in Score modifying. Someone beats himself!");
             return
         }
-        let t1 = self.mutex[p1].lock().unwrap();
-        let t2 = self.mutex[p2].lock().unwrap();
+        let _1 = self.mutex[p1].lock().unwrap();
+        let _2 = self.mutex[p2].lock().unwrap();
         let delta = match res.result {
             MatchResult::Win => {
                 if self.score[p1] >= self.score[p2] {20} else {30}
@@ -161,8 +161,6 @@ impl ScoreRecorder {
         };
         self.score[p1] += delta;
         self.score[p2] -= delta;
-        drop(t2);
-        drop(t1);
         sleep(Duration::from_millis(1));
     }
 
