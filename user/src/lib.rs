@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(linkage)]
-#![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
 #[macro_use]
@@ -130,6 +129,18 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
 
 pub fn waitpid_nb(pid: usize, exit_code: &mut i32) -> isize {
     sys_waitpid(pid as isize, exit_code as *mut _)
+}
+
+bitflags! {
+    pub struct EventFdFlags: u32 {
+        const NONE = 0;
+        const EFD_SEMAPHORE = 1;
+        const EFD_NONBLOCK = 1 << 11;
+    }
+}
+
+pub fn eventfd(initval: usize, flags: EventFdFlags) -> isize {
+    sys_eventfd(initval as u32, flags.bits() as i32)
 }
 
 bitflags! {

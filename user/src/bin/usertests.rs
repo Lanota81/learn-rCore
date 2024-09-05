@@ -41,6 +41,7 @@ static SUCC_TESTS: &[(&str, &str, &str, &str, i32)] = &[
     ("yield\0", "\0", "\0", "\0", 0),
     ("barrier_fail\0", "\0", "\0", "\0", 0),
     ("barrier_condvar\0", "\0", "\0", "\0", 0),
+    ("self_defined_test\0", "\0", "\0", "\0", 0),
 ];
 
 static FAIL_TESTS: &[(&str, &str, &str, &str, i32)] = &[
